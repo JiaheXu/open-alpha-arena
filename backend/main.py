@@ -10,6 +10,9 @@ from database.models import TradingConfig, User, Account, SystemConfig
 from config.settings import DEFAULT_TRADING_CONFIGS
 app = FastAPI(title="Crypto Paper Trading API")
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # Health check endpoint
 @app.get("/api/health")
 async def health_check():
