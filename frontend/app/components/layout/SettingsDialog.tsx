@@ -14,6 +14,8 @@ import {
   getAccounts as getAccounts,
   createAccount as createAccount,
   updateAccount as updateAccount,
+  deleteTradingAccount,
+  loginUser,
   testLLMConnection,
   type TradingAccount,
   type TradingAccountCreate,
@@ -58,6 +60,22 @@ export default function SettingsDialog({ open, onOpenChange, onAccountUpdated }:
     base_url: '',
     api_key: 'default-key-please-update-in-settings',
   })
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(false)
+
+  const fetchSession = async () => {
+    try {
+      setSessionLoading(true)
+      const auth = await loginUser('default', '')
+      setSessionToken(auth.session_token)
+    } catch (err) {
+      console.error('Failed to fetch session token:', err)
+      setSessionToken(null)
+      setError('Unable to authenticate account changes. Please try again.')
+    } finally {
+      setSessionLoading(false)
+    }
+  }
 
   const loadAccounts = async () => {
     try {
@@ -74,11 +92,12 @@ export default function SettingsDialog({ open, onOpenChange, onAccountUpdated }:
 
   useEffect(() => {
     if (open) {
-      loadAccounts()
       setError(null)
       setTestResult(null)
       setShowAddForm(false)
       setEditingId(null)
+      loadAccounts()
+      fetchSession()
     }
   }, [open])
 
@@ -234,6 +253,31 @@ export default function SettingsDialog({ open, onOpenChange, onAccountUpdated }:
     setError(null)
   }
 
+  const handleDeleteAccount = async (account: AIAccount) => {
+    if (!sessionToken) {
+      toast.error('Authentication required before deleting an account')
+      return
+    }
+
+    const confirmed = window.confirm(`Deactivate account "${account.name}"? This will disable automated trading for it.`)
+    if (!confirmed) return
+
+    try {
+      setLoading(true)
+      await deleteTradingAccount(account.id, sessionToken)
+      toast.success(`Account "${account.name}" deactivated`)
+      await loadAccounts()
+      onAccountUpdated?.()
+    } catch (err) {
+      console.error('Failed to delete account:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -342,6 +386,14 @@ export default function SettingsDialog({ open, onOpenChange, onAccountUpdated }:
                             size="sm"
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteAccount(account)}
+                            variant="destructive"
+                            size="sm"
+                            disabled={loading || sessionLoading}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

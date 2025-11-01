@@ -130,6 +130,8 @@ from api.account_routes import router as account_router
 from api.config_routes import router as config_router
 from api.ranking_routes import router as ranking_router
 from api.crypto_routes import router as crypto_router
+from api.user_routes import router as user_router
+from api.account_management_routes import router as account_management_router
 # Removed: AI account routes merged into account_routes (unified AI trader accounts)
 
 app.include_router(market_data_router)
@@ -138,6 +140,8 @@ app.include_router(account_router)
 app.include_router(config_router)
 app.include_router(ranking_router)
 app.include_router(crypto_router)
+app.include_router(user_router)
+app.include_router(account_management_router)
 # app.include_router(ai_account_router, prefix="/api")  # Removed - merged into account_router
 
 # WebSocket endpoint
