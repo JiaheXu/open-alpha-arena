@@ -209,8 +209,9 @@ export async function updateTradingAccount(accountId: number, account: TradingAc
   return response.json()
 }
 
-export async function deleteTradingAccount(accountId: number, sessionToken: string): Promise<void> {
-  await apiRequest(`/accounts/${accountId}?session_token=${sessionToken}`, {
+export async function deleteTradingAccount(accountId: number, sessionToken?: string): Promise<void> {
+  const query = sessionToken ? `?session_token=${sessionToken}` : ''
+  await apiRequest(`/account/${accountId}${query}`, {
     method: 'DELETE',
   })
 }

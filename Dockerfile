@@ -1,44 +1,51 @@
-FROM node:20-alpine AS frontend-build
+# --- Build stage: install deps, build frontend + backend ---------------------
+FROM node:22-slim AS build
+
+# Native modules (better-sqlite3, nodejs-polars) may need to compile if no
+# prebuilt binary matches this platform/ABI.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g pnpm@8.15.5
 
 WORKDIR /app
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Copy manifests first so dependency installation is cached independently
+# of source changes.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
 
-# Copy frontend source code
-COPY frontend/ .
+RUN pnpm install --frozen-lockfile
 
-# Install frontend dependencies and build
-RUN pnpm install && pnpm run build
+# Copy sources and build
+COPY frontend/ ./frontend/
+COPY backend/ ./backend/
 
-# Backend build
-FROM python:3.13-slim
+RUN pnpm run build
 
-RUN pip install uv
+# --- Runtime stage -----------------------------------------------------------
+FROM node:22-slim AS runtime
 
 WORKDIR /app
 
-# Copy backend files
-COPY backend/ ./
+# pnpm links packages relatively into node_modules/.pnpm, so the workspace root
+# and the backend's node_modules must be copied together to stay resolvable.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/backend/node_modules ./backend/node_modules
+COPY --from=build /app/backend/package.json ./backend/
+COPY --from=build /app/backend/dist ./backend/dist
 
-# Copy frontend build to backend static directory
-COPY --from=frontend-build /app/dist ./static
+# Frontend build output is served from the backend's static directory
+COPY --from=build /app/frontend/dist ./backend/static
 
-# Create __init__.py files for all directories containing Python files
-RUN find . -name "*.py" -exec dirname {} \; | xargs -I {} touch {}/__init__.py
+WORKDIR /app/backend
 
-# Install dependencies using uv
-RUN uv sync --frozen
+ENV NODE_ENV=production
+# SQLite file location; override to point at a mounted volume for persistence.
+ENV DATABASE_PATH=/app/backend/data.db
 
-# Activate virtual environment
-ENV VIRTUAL_ENV=/app/.venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-ENV PYTHONPATH=/app
-
-# Expose port
 EXPOSE 5611
 
-# Start the application
-WORKDIR /app
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5611"]
+CMD ["node", "dist/index.js"]

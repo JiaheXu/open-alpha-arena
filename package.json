@@ -3,12 +3,14 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
-    "dev:frontend": "cd frontend && pnpm dev",
-    "dev:backend": "cd backend && uv sync --quiet && uv run python -m uvicorn main:app --reload --port 5611 --host 0.0.0.0",
+    "dev:frontend": "pnpm --filter ./frontend dev",
+    "dev:backend": "pnpm --filter ./backend dev",
     "build": "pnpm run build:frontend && pnpm run build:backend",
-    "build:frontend": "cd frontend && pnpm build",
-    "build:backend": "cd backend && echo \"Backend build step not yet implemented\"",
-    "install:all": "pnpm install && cd backend && uv sync --quiet"
+    "build:frontend": "pnpm --filter ./frontend build",
+    "build:backend": "pnpm --filter ./backend build",
+    "typecheck": "pnpm --filter ./backend typecheck",
+    "install:all": "pnpm install",
+    "test": "pnpm --filter ./backend test"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

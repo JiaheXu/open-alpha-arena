@@ -11,6 +11,7 @@ DONE:
 - OpenAI compatible API
 - LEVERAGE
 - ccxt for quotation
+- Pure TypeScript stack (backend ported from Python; nodejs-polars replaces pandas)
 
 TODO:
 - real trading (actually you can implement it with ccxt by the help of AI coding tools easily)
@@ -27,14 +28,24 @@ TODO:
 
 ## Getting Started
 
+### Tech Stack
+The whole project is TypeScript — one runtime, one package manager.
+
+| Layer | Stack |
+| --- | --- |
+| Frontend | React 18 + Vite + Tailwind + shadcn/ui |
+| Backend | Hono + `@hono/node-server` (HTTP & WebSocket) |
+| Database | SQLite via Drizzle ORM + better-sqlite3 |
+| Validation | Zod |
+| Dataframes | nodejs-polars (factor calculations) |
+| Market data | ccxt (Hyperliquid) |
+
 ### Prerequisites
-- Node.js 18+ and pnpm
-- Python 3.10+ and uv
+- Node.js 20+ and pnpm
 
 ### Install
 ```bash
-# install JS deps and sync Python env
-pnpm run install:all
+pnpm install
 ```
 
 ### Development
@@ -50,24 +61,33 @@ Open:
 - Frontend: http://localhost:5621
 - Backend WS: ws://localhost:5611/ws
 
-Important: The frontend source is currently configured for port  5621. To use the workspace defaults (5611), update the following in frontend/app/main.tsx:
-- WebSocket URL: ws://localhost:5611/ws
-- API_BASE: http://127.0.0.1:5611
-
-Alternatively, run the backend on  5621:
+Vite proxies `/api` and `/ws` to the backend on 5611, so no extra configuration
+is needed. To run the backend alone:
 ```bash
-# from repo root
-cd backend
-uv sync
-uv run uvicorn main:app --reload --port  5621 --host 0.0.0.0
+pnpm --filter backend dev
 ```
 
 ### Build
 ```bash
-# build frontend; backend has no dedicated build step
-pnpm run build
+pnpm run build          # frontend (Vite) + backend (tsc)
+pnpm run typecheck      # backend type check only
+pnpm --filter backend test   # factor regression test vs the pandas baseline
 ```
-Static assets for the frontend are produced by Vite. The backend is a standard FastAPI app that can be run with Uvicorn or any ASGI server.
+The compiled backend lives in `backend/dist`; run it with `node dist/index.js`.
+Copy the frontend's `dist/` into `backend/static/` to have the backend serve the
+SPA (the Dockerfile does this automatically).
+
+### Configuration
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `5611` | HTTP/WebSocket port |
+| `DATABASE_PATH` | `backend/data.db` | SQLite file location |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warning` \| `error` |
+
+### Docker
+```bash
+docker compose up --build
+```
 
 ## License
 MIT
