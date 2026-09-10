@@ -156,3 +156,6 @@ backend/.DS_Store
 *.db-wal
 *.db-shm
 *.db.bak
+
+# Local git worktrees
+.worktrees/
